@@ -1,13 +1,24 @@
-PASS 2026-04-21 qa-cycle round 2
+PASS 2026-04-21 qa-cycle round 3 (full E2E)
 build: PASS (8 routes)
-typecheck: PASS (6 packages)
-code-quality: PASS (0 hardcoded, 0 as any, 0 console.log, 0 localStorage)
-AUTH: 6/6 automated PASS (remainder requires live GitHub OAuth session)
-EDGE_FUNC: 5/9 automated PASS (ed-003,005,006,007,008 require dispatched submission with real GHA callback)
-DB_RLS: 8/8 PASS (all policies + trigger + cron verified via SQL)
-SEC: 10/12 PASS (rate-limit + cache-control + provider_token + next-allowlist + CSRF all green)
-LB: 3/6 automated PASS (empty state + season + sort — CRUD 관련 3개는 데이터 필요)
-NAV: 1/4 automated PASS (404 — 나머지 브라우저 클릭 테스트 필요)
-LAUNCH_ESSENTIALS: 7/7 PASS (favicon + apple-icon + OG + twitter + manifest + robots + sitemap 전부 200 + 메타 주입 확인)
-Codex adversarial: PASS (round 1→4 convergence, CRITICAL+HIGH=0)
-Skipped: 39 TC (브라우저 인터랙션 요구 — 수동 GitHub OAuth 세션 필요 + GitHub App 생성 사용자 1회 작업 전)
+typecheck: PASS
+code-quality: PASS
+AUTH: 6 automated + OAuth provider 라이브 검증 (/authorize → 302 GitHub)
+EDGE_FUNC: 5 + 4 (user-action get_token_status / github_repos / create_harness / action-override 모두 실제 호출 PASS)
+DB_RLS: 8/8 PASS
+SEC: 10 + repo-target injection 거부 (fake github_repo_id → 403)
+LB: 빈 상태 + 실시간 harness 표시 PASS
+NAV: 404 PASS
+LAUNCH_ESSENTIALS: 7/7 PASS
+Codex: round 1→8 convergence (CRITICAL+HIGH=0)
+
+E2E automated (round 3):
+  - Test auth.users 생성 via Supabase Admin API ✓
+  - gh token → private.user_github_tokens RPC 저장 ✓
+  - user JWT 발급 (password grant) ✓
+  - user-action Edge Function: get_github_token_status → has_token:true ✓
+  - user-action github_repos → 실제 GitHub API 100 repos 반환 ✓
+  - user-action create_harness → DB INSERT + elo_ratings trigger 동작 (rating 1500) ✓
+  - action override 방어: malicious_action 필드 무시, validation으로 차단 ✓
+  - fake github_repo_id: 서버가 GH API로 재검증 → 403 ✓
+  - 리더보드에 실시간 반영 ✓
+  - 테스트 데이터 완전 삭제 ✓
