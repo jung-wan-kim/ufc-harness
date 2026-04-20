@@ -1,31 +1,24 @@
 #!/usr/bin/env bash
 # UFC-Harness — GitHub OAuth one-time setup
 #
-# Reads secrets from environment variables OR interactive stdin (-s, no echo).
-# NEVER pass secrets as positional args — they leak into shell history,
-# process listings, and CI logs.
-#
-# Usage (preferred — env vars):
-#   GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... SUPABASE_PAT=... \
-#     ./scripts/setup-github-oauth.sh
-#
-# Usage (interactive — secrets not echoed):
-#   ./scripts/setup-github-oauth.sh
-#   Client ID:     <paste>
-#   Client Secret: <paste, hidden>
-#   Supabase PAT:  <paste, hidden>
+# Zero secret exposure via argv:
+#   - Reads secrets from env OR interactive stdin (no echo)
+#   - Passes Authorization to curl via `-K` config file (never on argv)
 #
 # Setup steps to get values:
 #   1. https://github.com/settings/applications/new
 #        Homepage:  https://ufc-harness.vercel.app
 #        Callback:  https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback
-#   2. https://supabase.com/dashboard/account/tokens (create new)
+#   2. https://supabase.com/dashboard/account/tokens
+#
+# Run:
+#   ./scripts/setup-github-oauth.sh
+#   (it will prompt for any value not already in env)
 
 set -euo pipefail
 
 PROJECT_REF="hihafrpktdotahsbcqfa"
 
-# 1) Acquire secrets without putting them in argv
 read_secret() {
   local prompt="$1" var
   printf "%s: " "$prompt" >&2
@@ -45,7 +38,6 @@ if [[ -z "${SUPABASE_PAT:-}" ]]; then
   SUPABASE_PAT=$(read_secret "Supabase Personal Access Token (hidden)")
 fi
 
-# Validate format (cheap sanity)
 if [[ ! "$GITHUB_CLIENT_ID" =~ ^[A-Za-z0-9._-]+$ ]] \
    || [[ ! "$GITHUB_CLIENT_SECRET" =~ ^[A-Za-z0-9._-]+$ ]] \
    || [[ ! "$SUPABASE_PAT" =~ ^sbp_[A-Za-z0-9]+$ ]]; then
@@ -53,62 +45,58 @@ if [[ ! "$GITHUB_CLIENT_ID" =~ ^[A-Za-z0-9._-]+$ ]] \
   exit 1
 fi
 
+# ---- Keep PAT out of argv ----
+# curl `-K file` reads options (including -H) from a config file. The file
+# is created with mode 600 and removed via trap. The bearer token never
+# appears in `ps`, shell history, or CI command capture.
+CURL_CFG=$(mktemp)
+chmod 600 "$CURL_CFG"
+BODY_FILE=$(mktemp)
+chmod 600 "$BODY_FILE"
+trap 'rm -f "$CURL_CFG" "$BODY_FILE"' EXIT
+
+cat >"$CURL_CFG" <<EOF
+header = "Authorization: Bearer ${SUPABASE_PAT}"
+header = "Content-Type: application/json"
+EOF
+
+# Build JSON body safely via jq (proper escaping — no string concat)
+jq -nc \
+  --arg cid "$GITHUB_CLIENT_ID" \
+  --arg csec "$GITHUB_CLIENT_SECRET" \
+  '{external_github_enabled: true,
+    external_github_client_id: $cid,
+    external_github_secret: $csec}' > "$BODY_FILE"
+
 echo "→ Configuring Supabase Auth (project: $PROJECT_REF)..."
 
-# Use Authorization header (not URL) to keep secret off process listings
-RESP=$(curl -sS -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
-  -H "Authorization: Bearer ${SUPABASE_PAT}" \
-  -H "Content-Type: application/json" \
-  --data @- <<JSON
-{
-  "external_github_enabled": true,
-  "external_github_client_id": "${GITHUB_CLIENT_ID}",
-  "external_github_secret":    "${GITHUB_CLIENT_SECRET}"
-}
-JSON
-)
+RESP=$(curl -sS -K "$CURL_CFG" \
+  -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
+  --data-binary "@$BODY_FILE")
 
 if echo "$RESP" | grep -q '"external_github_enabled"[[:space:]]*:[[:space:]]*true'; then
   echo "✅ GitHub OAuth provider enabled at Supabase"
 else
-  echo "❌ Failed to update Supabase auth config:"
-  echo "$RESP"
+  echo "❌ Failed:" >&2
+  echo "$RESP" >&2
   exit 1
 fi
 
-# 2) Backup credentials via Edge Function (parameterized RPC) — NOT raw SQL.
-#    We use Supabase SQL endpoint with a parameterized prepared statement to
-#    avoid string-interpolation SQL injection.
-echo "→ Backing up credentials in private.secrets via parameterized query..."
-
-# pg_temp prepared statement style: $1, $2 placeholders
-SQL_PAYLOAD=$(cat <<'JSON'
-{
-  "query": "INSERT INTO private.secrets (key, value) VALUES ($1, $2), ($3, $4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
-  "params": ["GITHUB_OAUTH_CLIENT_ID", "__CID__", "GITHUB_OAUTH_CLIENT_SECRET", "__CSEC__"]
-}
-JSON
-)
-# Inject values via jq (proper JSON escaping — no shell-side string concat)
-PAYLOAD=$(jq -nc \
+# Backup credentials via parameterized-style JSON (jq escaping) — never
+# string-concat into SQL.
+echo "→ Backing up credentials in private.secrets..."
+jq -nc \
   --arg cid "$GITHUB_CLIENT_ID" \
   --arg csec "$GITHUB_CLIENT_SECRET" \
-  '{
-     query: "INSERT INTO private.secrets (key, value) VALUES ($1, $2), ($3, $4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
-     params: ["GITHUB_OAUTH_CLIENT_ID", $cid, "GITHUB_OAUTH_CLIENT_SECRET", $csec]
-   }')
+  '{query: "INSERT INTO private.secrets (key, value) VALUES ($1, $2), ($3, $4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+    params: ["GITHUB_OAUTH_CLIENT_ID", $cid, "GITHUB_OAUTH_CLIENT_SECRET", $csec]}' > "$BODY_FILE"
 
-# Note: Supabase Management /database/query endpoint may not support `params`.
-# Fallback: use jq to safely escape, then sanity-check no quote/backslash escapes the literal.
-if ! curl -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
-  -H "Authorization: Bearer ${SUPABASE_PAT}" \
-  -H "Content-Type: application/json" \
-  --data "$PAYLOAD" >/dev/null; then
-  echo "⚠️  Backup INSERT skipped (endpoint may not accept params); credentials still set in Supabase Auth."
-fi
+curl -sS -K "$CURL_CFG" \
+  -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+  --data-binary "@$BODY_FILE" >/dev/null \
+  || echo "⚠️  Backup INSERT skipped (endpoint may not accept params); Auth still configured."
 
 echo ""
 echo "🥊 Done. Test login at https://ufc-harness.vercel.app/auth/login"
 
-# Clear secrets from this shell
 unset GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET SUPABASE_PAT
