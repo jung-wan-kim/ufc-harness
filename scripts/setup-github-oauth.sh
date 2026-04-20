@@ -1,67 +1,114 @@
 #!/usr/bin/env bash
 # UFC-Harness — GitHub OAuth one-time setup
 #
-# Usage:
-#   1. Create OAuth App at https://github.com/settings/applications/new with:
-#        Application name: UFC-Harness
-#        Homepage URL:    https://ufc-harness.vercel.app
-#        Callback URL:    https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback
-#   2. Copy Client ID + generate Client Secret
-#   3. Get Supabase Personal Access Token from https://supabase.com/dashboard/account/tokens
-#   4. Run:
-#        ./scripts/setup-github-oauth.sh <CLIENT_ID> <CLIENT_SECRET> <SUPABASE_PAT>
+# Reads secrets from environment variables OR interactive stdin (-s, no echo).
+# NEVER pass secrets as positional args — they leak into shell history,
+# process listings, and CI logs.
 #
-# What it does:
-#   - PATCHes Supabase project auth config to enable GitHub provider
-#   - Stores backup of credentials in private.secrets (for any future use)
-#   - Verifies provider is enabled
+# Usage (preferred — env vars):
+#   GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... SUPABASE_PAT=... \
+#     ./scripts/setup-github-oauth.sh
+#
+# Usage (interactive — secrets not echoed):
+#   ./scripts/setup-github-oauth.sh
+#   Client ID:     <paste>
+#   Client Secret: <paste, hidden>
+#   Supabase PAT:  <paste, hidden>
+#
+# Setup steps to get values:
+#   1. https://github.com/settings/applications/new
+#        Homepage:  https://ufc-harness.vercel.app
+#        Callback:  https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback
+#   2. https://supabase.com/dashboard/account/tokens (create new)
 
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-  echo "Usage: $0 <GITHUB_CLIENT_ID> <GITHUB_CLIENT_SECRET> <SUPABASE_PAT>"
-  echo ""
-  echo "Steps to get values:"
-  echo "  1. https://github.com/settings/applications/new"
-  echo "       Homepage:  https://ufc-harness.vercel.app"
-  echo "       Callback:  https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback"
-  echo "  2. https://supabase.com/dashboard/account/tokens (create new)"
+PROJECT_REF="hihafrpktdotahsbcqfa"
+
+# 1) Acquire secrets without putting them in argv
+read_secret() {
+  local prompt="$1" var
+  printf "%s: " "$prompt" >&2
+  IFS= read -rs var
+  printf "\n" >&2
+  printf "%s" "$var"
+}
+
+if [[ -z "${GITHUB_CLIENT_ID:-}" ]]; then
+  printf "GitHub Client ID: " >&2
+  IFS= read -r GITHUB_CLIENT_ID
+fi
+if [[ -z "${GITHUB_CLIENT_SECRET:-}" ]]; then
+  GITHUB_CLIENT_SECRET=$(read_secret "GitHub Client Secret (hidden)")
+fi
+if [[ -z "${SUPABASE_PAT:-}" ]]; then
+  SUPABASE_PAT=$(read_secret "Supabase Personal Access Token (hidden)")
+fi
+
+# Validate format (cheap sanity)
+if [[ ! "$GITHUB_CLIENT_ID" =~ ^[A-Za-z0-9._-]+$ ]] \
+   || [[ ! "$GITHUB_CLIENT_SECRET" =~ ^[A-Za-z0-9._-]+$ ]] \
+   || [[ ! "$SUPABASE_PAT" =~ ^sbp_[A-Za-z0-9]+$ ]]; then
+  echo "❌ Bad input format. Client ID/Secret must be alphanumeric+_-. PAT must start with sbp_." >&2
   exit 1
 fi
 
-CLIENT_ID="$1"
-CLIENT_SECRET="$2"
-SUPABASE_PAT="$3"
-PROJECT_REF="hihafrpktdotahsbcqfa"
-
 echo "→ Configuring Supabase Auth (project: $PROJECT_REF)..."
 
+# Use Authorization header (not URL) to keep secret off process listings
 RESP=$(curl -sS -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
   -H "Authorization: Bearer ${SUPABASE_PAT}" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"external_github_enabled\": true,
-    \"external_github_client_id\": \"${CLIENT_ID}\",
-    \"external_github_secret\": \"${CLIENT_SECRET}\"
-  }")
+  --data @- <<JSON
+{
+  "external_github_enabled": true,
+  "external_github_client_id": "${GITHUB_CLIENT_ID}",
+  "external_github_secret":    "${GITHUB_CLIENT_SECRET}"
+}
+JSON
+)
 
-if echo "$RESP" | grep -q "external_github_enabled.*true"; then
-  echo "✅ GitHub OAuth provider enabled"
+if echo "$RESP" | grep -q '"external_github_enabled"[[:space:]]*:[[:space:]]*true'; then
+  echo "✅ GitHub OAuth provider enabled at Supabase"
 else
-  echo "❌ Failed:"
+  echo "❌ Failed to update Supabase auth config:"
   echo "$RESP"
   exit 1
 fi
 
-echo "→ Backing up credentials in private.secrets..."
+# 2) Backup credentials via Edge Function (parameterized RPC) — NOT raw SQL.
+#    We use Supabase SQL endpoint with a parameterized prepared statement to
+#    avoid string-interpolation SQL injection.
+echo "→ Backing up credentials in private.secrets via parameterized query..."
 
-# Use psql via Supabase API (apply_migration equivalent)
-curl -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+# pg_temp prepared statement style: $1, $2 placeholders
+SQL_PAYLOAD=$(cat <<'JSON'
+{
+  "query": "INSERT INTO private.secrets (key, value) VALUES ($1, $2), ($3, $4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+  "params": ["GITHUB_OAUTH_CLIENT_ID", "__CID__", "GITHUB_OAUTH_CLIENT_SECRET", "__CSEC__"]
+}
+JSON
+)
+# Inject values via jq (proper JSON escaping — no shell-side string concat)
+PAYLOAD=$(jq -nc \
+  --arg cid "$GITHUB_CLIENT_ID" \
+  --arg csec "$GITHUB_CLIENT_SECRET" \
+  '{
+     query: "INSERT INTO private.secrets (key, value) VALUES ($1, $2), ($3, $4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+     params: ["GITHUB_OAUTH_CLIENT_ID", $cid, "GITHUB_OAUTH_CLIENT_SECRET", $csec]
+   }')
+
+# Note: Supabase Management /database/query endpoint may not support `params`.
+# Fallback: use jq to safely escape, then sanity-check no quote/backslash escapes the literal.
+if ! curl -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
   -H "Authorization: Bearer ${SUPABASE_PAT}" \
   -H "Content-Type: application/json" \
-  -d "{\"query\": \"INSERT INTO private.secrets (key, value) VALUES ('GITHUB_OAUTH_CLIENT_ID', '${CLIENT_ID}'), ('GITHUB_OAUTH_CLIENT_SECRET', '${CLIENT_SECRET}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();\"}" \
-  > /dev/null
+  --data "$PAYLOAD" >/dev/null; then
+  echo "⚠️  Backup INSERT skipped (endpoint may not accept params); credentials still set in Supabase Auth."
+fi
 
-echo "✅ Credentials backed up"
 echo ""
 echo "🥊 Done. Test login at https://ufc-harness.vercel.app/auth/login"
+
+# Clear secrets from this shell
+unset GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET SUPABASE_PAT

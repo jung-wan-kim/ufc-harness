@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface Repo {
   id: number;
@@ -15,7 +14,6 @@ interface Repo {
   default_branch: string;
   pushed_at: string;
   language: string | null;
-  has_workflow?: boolean;
 }
 
 interface Props {
@@ -38,36 +36,22 @@ export function SubmitForm({ hasGithubToken }: Props) {
     void loadRepos();
   }, [hasGithubToken]);
 
+  // Server-side proxy: provider_token never reaches the browser.
   const loadRepos = async () => {
     setLoadingRepos(true);
     setReposError(null);
     try {
-      const sb = getSupabaseBrowserClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.provider_token;
-      if (!token) {
-        setReposError('GitHub 토큰 없음. 다시 로그인 필요.');
-        setLoadingRepos(false);
+      const res = await fetch('/api/github/repos', { cache: 'no-store' });
+      if (res.status === 401) {
+        setReposError('GitHub 토큰 만료. 재로그인 필요.');
         return;
       }
-
-      // Fetch up to 100 repos sorted by recently pushed
-      const res = await fetch(
-        'https://api.github.com/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github+json',
-          },
-        },
-      );
       if (!res.ok) {
-        setReposError(`GitHub API ${res.status}: 토큰이 만료됐을 수 있음. 재로그인 시도.`);
-        setLoadingRepos(false);
+        setReposError(`GitHub 호출 실패 (${res.status})`);
         return;
       }
-      const list = (await res.json()) as Repo[];
-      setRepos(list);
+      const json = (await res.json()) as { repos: Repo[] };
+      setRepos(json.repos);
     } catch (e) {
       setReposError((e as Error).message);
     } finally {
@@ -92,68 +76,33 @@ export function SubmitForm({ hasGithubToken }: Props) {
     setError(null);
 
     const fd = new FormData(e.currentTarget);
-    const sb = getSupabaseBrowserClient();
-    const { data: { user } } = await sb.auth.getUser();
-    if (!user) {
-      setError('세션이 풀렸다. 새로고침 후 재시도.');
-      setSubmitting(false);
-      return;
-    }
-
     const name = String(fd.get('name') ?? selectedRepo.name).trim();
     const runtime = String(fd.get('runtime') ?? 'CLAUDE_CODE');
     const entrypoint = String(fd.get('entrypoint') ?? '').trim();
     const description = String(fd.get('description') ?? selectedRepo.description ?? '').trim();
-    const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 60);
 
-    // Resolve current commit SHA via GitHub API
-    let commitSha = 'HEAD';
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.provider_token;
-      if (token) {
-        const branchRes = await fetch(
-          `https://api.github.com/repos/${selectedRepo.full_name}/branches/${selectedRepo.default_branch}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (branchRes.ok) {
-          const branch = await branchRes.json();
-          commitSha = branch?.commit?.sha ?? 'HEAD';
-        }
-      }
-    } catch {
-      // best-effort, fall back to HEAD
-    }
-
-    const { data, error: insertErr } = await sb
-      .from('harnesses')
-      .insert({
-        owner_id: user.id,
+    // SERVER-SIDE INSERT — owner_id, repo_url, commit_sha derived from session+GH API,
+    // not from client. Repo ownership re-verified server-side.
+    const res = await fetch('/api/harnesses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        github_repo_id: selectedRepo.id,
         name,
-        slug,
-        repo_url: selectedRepo.html_url,
-        commit_sha: commitSha,
         runtime,
         entrypoint,
-        meta: { description, github_full_name: selectedRepo.full_name, language: selectedRepo.language },
-        status: 'ACTIVE',
-        auto_submit: true,
-      })
-      .select('id, slug')
-      .single();
+        description,
+      }),
+    });
 
-    if (insertErr) {
-      setError(insertErr.message);
-      setSubmitting(false);
+    setSubmitting(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || `HTTP ${res.status}`);
       return;
     }
-
-    // Initialize ELO
-    if (data?.id) {
-      await sb.from('elo_ratings').insert({ harness_id: data.id, rating: 1500 });
-    }
-
-    setDone({ slug: data!.slug });
+    const data = (await res.json()) as { id: string; slug: string };
+    setDone({ slug: data.slug });
     setTimeout(() => {
       router.push('/leaderboard');
       router.refresh();

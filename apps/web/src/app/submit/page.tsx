@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { invokeUserAction } from '@/lib/user-action';
 import { SubmitForm } from './submit-form';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +19,10 @@ export default async function SubmitPage() {
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false });
 
-  // Get GitHub provider token from session for repo fetching
-  const { data: { session } } = await sb.auth.getSession();
-  const ghToken = session?.provider_token ?? null;
+  // Check whether we have a GitHub token stored server-side for this user
+  // (via Edge Function — service_role stays in Supabase, not in Vercel).
+  const status = await invokeUserAction<{ has_token: boolean }>('get_github_token_status');
+  const ghToken = status.ok && status.data.has_token ? 'server-stored' : null;
 
   return (
     <main className="min-h-screen px-6 py-16">

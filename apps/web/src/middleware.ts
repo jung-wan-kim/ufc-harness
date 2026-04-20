@@ -22,6 +22,11 @@ export async function middleware(request: NextRequest) {
   );
 
   await supabase.auth.getUser();
+
+  // Never cache responses that may carry refreshed auth cookies.
+  // (@supabase/ssr < 0.10 does not set this automatically.)
+  response.headers.set('Cache-Control', 'private, no-store');
+
   return response;
 }
 

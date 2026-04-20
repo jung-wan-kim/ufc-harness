@@ -1,0 +1,315 @@
+{
+  "project_type": "web",
+  "project_root": "/Users/jung-wankim/Project/ufc-harness",
+  "generated_at": "2026-04-20T16:17:47.083720Z",
+  "source_scan": {
+    "files_scanned": 38
+  },
+  "inventory": {
+    "buttons": [
+      {
+        "id": "but-ced0755252",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 182,
+        "context": "<button"
+      },
+      {
+        "id": "but-67cfde7433",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 208,
+        "context": "<button"
+      },
+      {
+        "id": "but-13cdc36bbe",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 307,
+        "context": "<button"
+      },
+      {
+        "id": "but-62f1b9dffd",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 184,
+        "context": "onClick={() => setSelectedRepo(null)}"
+      },
+      {
+        "id": "but-1e3a7ac4e8",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 210,
+        "context": "onClick={() => {"
+      },
+      {
+        "id": "but-41b8550152",
+        "file": "apps/web/src/app/auth/login/page.tsx",
+        "line": 42,
+        "context": "<button"
+      },
+      {
+        "id": "but-44781dabf1",
+        "file": "apps/web/src/app/auth/login/page.tsx",
+        "line": 43,
+        "context": "onClick={signInWithGitHub}"
+      },
+      {
+        "id": "but-a5e904bee6",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 38,
+        "context": "<button"
+      },
+      {
+        "id": "but-883fd79ea6",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 100,
+        "context": "<button"
+      },
+      {
+        "id": "but-ad35f22c4e",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 22,
+        "context": "const onClick = (e: MouseEvent) => {"
+      },
+      {
+        "id": "but-76990d96bf",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 39,
+        "context": "onClick={() => setOpen(!open)}"
+      },
+      {
+        "id": "but-3fa819db70",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 88,
+        "context": "onClick={() => setOpen(false)}"
+      },
+      {
+        "id": "but-a95b37f273",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 95,
+        "context": "onClick={() => setOpen(false)}"
+      },
+      {
+        "id": "but-4eed3675f9",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 101,
+        "context": "onClick={signOut}"
+      }
+    ],
+    "forms": [
+      {
+        "id": "for-a90796943e",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 157,
+        "context": "<form onSubmit={onSubmit} className=\"mt-10 space-y-6\">"
+      }
+    ],
+    "modals": [],
+    "api_endpoints": [
+      {
+        "id": "api-dcd40eb24c",
+        "file": "supabase/functions/dispatch-challenge/index.ts",
+        "line": 80,
+        "context": "const dispatchRes = await fetch("
+      },
+      {
+        "id": "api-c998e22bee",
+        "file": "supabase/functions/upload-result/index.ts",
+        "line": 100,
+        "context": "fetch(`${SUPABASE_URL}/functions/v1/judge-submission`, {"
+      },
+      {
+        "id": "api-2f27df6511",
+        "file": "supabase/functions/judge-submission/index.ts",
+        "line": 112,
+        "context": "const res = await fetch('https://api.anthropic.com/v1/messages', {"
+      },
+      {
+        "id": "api-cc095e74a5",
+        "file": "supabase/functions/judge-submission/index.ts",
+        "line": 133,
+        "context": "const res = await fetch('https://api.openai.com/v1/chat/completions', {"
+      },
+      {
+        "id": "api-8053d108cb",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 44,
+        "context": "const res = await fetch('/api/github/repos', { cache: 'no-store' });"
+      },
+      {
+        "id": "api-018fa85570",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 86,
+        "context": "const res = await fetch('/api/harnesses', {"
+      },
+      {
+        "id": "api-7b774983e4",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 44,
+        "context": "const res = await fetch('/api/github/repos', { cache: 'no-store' });"
+      },
+      {
+        "id": "api-09bc04aeec",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 86,
+        "context": "const res = await fetch('/api/harnesses', {"
+      },
+      {
+        "id": "api-718abc048a",
+        "file": "apps/web/src/app/auth/callback/route.ts",
+        "line": 40,
+        "context": "await fetch("
+      }
+    ],
+    "db_entities": [
+      {
+        "id": "db_-48413ee109",
+        "file": "supabase/functions/judge-submission/index.ts",
+        "line": 17,
+        "context": "interface ScoreAxes {"
+      },
+      {
+        "id": "db_-4085464a2a",
+        "file": "packages/judges/src/dual-judge.ts",
+        "line": 10,
+        "context": "export interface ConsensusResult {"
+      },
+      {
+        "id": "db_-4c5b09fa96",
+        "file": "packages/judges/src/elo.ts",
+        "line": 8,
+        "context": "export interface EloState {"
+      },
+      {
+        "id": "db_-af9a345272",
+        "file": "packages/judges/src/axes/quality.ts",
+        "line": 7,
+        "context": "export interface StaticAnalysisInput {"
+      },
+      {
+        "id": "db_-79fa302c7d",
+        "file": "packages/judges/src/axes/quality.ts",
+        "line": 13,
+        "context": "export interface StaticAnalysisResult {"
+      },
+      {
+        "id": "db_-6d0b4ffb9b",
+        "file": "packages/judges/src/axes/robustness.ts",
+        "line": 6,
+        "context": "export interface RobustnessInput {"
+      },
+      {
+        "id": "db_-3a9dc46b66",
+        "file": "packages/judges/src/axes/robustness.ts",
+        "line": 12,
+        "context": "export interface RobustnessResult {"
+      },
+      {
+        "id": "db_-e72c016394",
+        "file": "packages/judges/src/axes/elegance.ts",
+        "line": 6,
+        "context": "export interface EleganceInput {"
+      },
+      {
+        "id": "db_-ea4510e988",
+        "file": "packages/judges/src/axes/correctness.ts",
+        "line": 6,
+        "context": "export interface TestResult {"
+      },
+      {
+        "id": "db_-1abb2455a4",
+        "file": "packages/judges/src/axes/correctness.ts",
+        "line": 14,
+        "context": "export interface CorrectnessInput {"
+      },
+      {
+        "id": "db_-a3bc9fe899",
+        "file": "packages/judges/src/axes/efficiency.ts",
+        "line": 6,
+        "context": "export interface EfficiencyInput {"
+      },
+      {
+        "id": "db_-c5185de8f0",
+        "file": "packages/schemas/src/index.ts",
+        "line": 5,
+        "context": "export type HarnessRuntime = z.infer<typeof HarnessRuntime>;"
+      },
+      {
+        "id": "db_-5b5a308cf2",
+        "file": "packages/schemas/src/index.ts",
+        "line": 23,
+        "context": "export type HarnessSubmitInput = z.infer<typeof HarnessSubmitInput>;"
+      },
+      {
+        "id": "db_-6c072fce68",
+        "file": "packages/schemas/src/index.ts",
+        "line": 33,
+        "context": "export type ChallengeType = z.infer<typeof ChallengeType>;"
+      },
+      {
+        "id": "db_-0f4df4f5e3",
+        "file": "packages/schemas/src/index.ts",
+        "line": 36,
+        "context": "export type Difficulty = z.infer<typeof Difficulty>;"
+      },
+      {
+        "id": "db_-ccf37e6806",
+        "file": "packages/schemas/src/index.ts",
+        "line": 45,
+        "context": "export type ScoreWeights = z.infer<typeof ScoreWeights>;"
+      },
+      {
+        "id": "db_-b0c3394329",
+        "file": "packages/schemas/src/index.ts",
+        "line": 55,
+        "context": "export type ScoreAxes = z.infer<typeof ScoreAxes>;"
+      },
+      {
+        "id": "db_-3fd46bfa77",
+        "file": "packages/schemas/src/index.ts",
+        "line": 64,
+        "context": "export type JudgeVerdict = z.infer<typeof JudgeVerdict>;"
+      },
+      {
+        "id": "db_-dd7e780b11",
+        "file": "packages/schemas/src/index.ts",
+        "line": 105,
+        "context": "export type SubmissionEvent = z.infer<typeof SubmissionEvent>;"
+      },
+      {
+        "id": "db_-6719936a35",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 7,
+        "context": "interface Repo {"
+      },
+      {
+        "id": "db_-bdcf8dbb8a",
+        "file": "apps/web/src/app/submit/submit-form.tsx",
+        "line": 19,
+        "context": "interface Props {"
+      },
+      {
+        "id": "db_-327c16bcfc",
+        "file": "apps/web/src/app/leaderboard/page.tsx",
+        "line": 6,
+        "context": "interface LeaderRow {"
+      },
+      {
+        "id": "db_-452cbcd973",
+        "file": "apps/web/src/components/user-menu.tsx",
+        "line": 8,
+        "context": "interface Props {"
+      },
+      {
+        "id": "db_-4a6187eb62",
+        "file": "apps/web/src/lib/csrf.ts",
+        "line": 40,
+        "context": "type Bucket = { tokens: number; refilledAt: number };"
+      }
+    ]
+  },
+  "totals": {
+    "buttons": 14,
+    "forms": 1,
+    "modals": 0,
+    "api_endpoints": 9,
+    "db_entities": 24
+  },
+  "inventory_hash": "491f0d06ffbfd34b"
+}
