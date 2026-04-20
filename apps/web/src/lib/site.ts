@@ -21,5 +21,10 @@ export const SITE_ORIGIN = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
 export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME ?? 'UFC-Harness';
 
 export function siteUrl(path: string): string {
+  // Reject protocol-relative ('//evil') and absolute URLs ('http(s)://evil')
+  // to prevent external-host injection if a future caller passes user input.
+  if (/^\/\//.test(path) || /^[a-z][a-z0-9+.-]*:/i.test(path)) {
+    throw new Error(`siteUrl: refused non-pathname input: ${path}`);
+  }
   return new URL(path.startsWith('/') ? path : `/${path}`, SITE_ORIGIN).toString();
 }
