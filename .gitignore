@@ -1,0 +1,54 @@
+# deps
+node_modules
+.pnpm-store
+
+# build
+.next
+.turbo
+dist
+build
+out
+coverage
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+
+# prisma
+.prisma
+prisma/migrations/dev*
+
+# docker
+.docker/volumes
+
+# sandbox runtime
+services/runtime/workspaces/
+services/runtime/logs/
+
+# secrets / keys (never commit)
+*.pem
+*.key
+secrets/
+
+# temp
+tmp/
+.cache
+tsconfig.tsbuildinfo
+next-env.d.ts

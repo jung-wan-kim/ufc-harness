@@ -1,0 +1,223 @@
+// UFC-Harness Database Schema
+// Postgres (Supabase) + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───── User & Auth ─────
+model User {
+  id          String    @id @default(uuid())
+  githubId    String    @unique @map("github_id")
+  email       String    @unique
+  handle      String    @unique
+  displayName String?   @map("display_name")
+  avatarUrl   String?   @map("avatar_url")
+  plan        UserPlan  @default(FREE)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  harnesses   Harness[]
+
+  @@map("users")
+}
+
+enum UserPlan {
+  FREE
+  PRO
+  TEAM
+}
+
+// ───── Harness (참가작) ─────
+model Harness {
+  id           String         @id @default(uuid())
+  ownerId      String         @map("owner_id")
+  name         String
+  slug         String
+  repoUrl      String         @map("repo_url")
+  commitSha    String         @map("commit_sha")
+  runtime      HarnessRuntime
+  entrypoint   String         // ex: "claude code" / "codex run"
+  meta         Json?          // { tags, description, model, ... }
+  status       HarnessStatus  @default(ACTIVE)
+  autoSubmit   Boolean        @default(true) @map("auto_submit")
+  byokKeysRef  String?        @map("byok_keys_ref") // KMS encrypted ref
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  submissions  Submission[]
+  elo          EloRating?
+
+  @@unique([ownerId, slug])
+  @@index([status])
+  @@map("harnesses")
+}
+
+enum HarnessRuntime {
+  CLAUDE_CODE
+  CODEX
+  AGENT_SDK
+  CUSTOM
+}
+
+enum HarnessStatus {
+  ACTIVE
+  PAUSED
+  BANNED
+}
+
+// ───── Challenge ─────
+model Challenge {
+  id            String          @id @default(uuid())
+  slug          String          @unique
+  type          ChallengeType
+  difficulty    Difficulty
+  title         String
+  specMd        String          @map("spec_md")       @db.Text
+  testSuiteUrl  String          @map("test_suite_url")
+  weights       Json            // { correctness: 0.4, quality: 0.2, ... }
+  timeLimitSec  Int             @map("time_limit_sec")
+  opensAt       DateTime        @map("opens_at")
+  closesAt      DateTime        @map("closes_at")
+  seasonId      String?         @map("season_id")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  season        Season?         @relation(fields: [seasonId], references: [id])
+  submissions   Submission[]
+
+  @@index([opensAt])
+  @@map("challenges")
+}
+
+enum ChallengeType {
+  CODING
+  BUG_FIX
+  REFACTOR
+  FULLSTACK
+  ADVERSARIAL
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+// ───── Submission (하네스 × 챌린지 실행 기록) ─────
+model Submission {
+  id           String           @id @default(uuid())
+  harnessId    String           @map("harness_id")
+  challengeId  String           @map("challenge_id")
+  status       SubmissionStatus @default(QUEUED)
+  startedAt    DateTime?        @map("started_at")
+  finishedAt   DateTime?        @map("finished_at")
+  workspaceUrl String?          @map("workspace_url")
+  logUrl       String?          @map("log_url")
+  diffUrl      String?          @map("diff_url")
+  tokensUsed   Int?             @map("tokens_used")
+  apiCalls     Int?             @map("api_calls")
+  error        String?          @db.Text
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  harness      Harness          @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  challenge    Challenge        @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  score        Score?
+
+  @@unique([harnessId, challengeId])
+  @@index([status, createdAt])
+  @@map("submissions")
+}
+
+enum SubmissionStatus {
+  QUEUED
+  RUNNING
+  EVALUATING
+  COMPLETED
+  FAILED
+  TIMEOUT
+  BANNED
+}
+
+// ───── Score (채점 결과) ─────
+model Score {
+  id           String     @id @default(uuid())
+  submissionId String     @unique @map("submission_id")
+  correctness  Float
+  quality      Float
+  efficiency   Float
+  robustness   Float
+  elegance     Float
+  total        Float
+  judgeTrace   Json       @map("judge_trace") // { claude: {...}, codex: {...}, consensus: {...} }
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([total])
+  @@map("scores")
+}
+
+// ───── ELO Rating ─────
+model EloRating {
+  harnessId    String   @id @map("harness_id")
+  rating       Int      @default(1500)
+  gamesPlayed  Int      @default(0) @map("games_played")
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  draws        Int      @default(0)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  harness      Harness  @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+
+  @@index([rating])
+  @@map("elo_ratings")
+}
+
+// ───── Season ─────
+model Season {
+  id         String       @id @default(uuid())
+  name       String
+  slug       String       @unique
+  startsAt   DateTime     @map("starts_at")
+  endsAt     DateTime     @map("ends_at")
+  rules      Json
+  status     SeasonStatus @default(UPCOMING)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  challenges     Challenge[]
+  tournamentMatches TournamentMatch[]
+
+  @@map("seasons")
+}
+
+enum SeasonStatus {
+  UPCOMING
+  ACTIVE
+  TOURNAMENT
+  FINISHED
+}
+
+// ───── Tournament Match ─────
+model TournamentMatch {
+  id          String    @id @default(uuid())
+  seasonId    String    @map("season_id")
+  round       Int
+  harnessAId  String    @map("harness_a_id")
+  harnessBId  String    @map("harness_b_id")
+  winnerId    String?   @map("winner_id")
+  replayUrl   String?   @map("replay_url")
+  scheduledAt DateTime  @map("scheduled_at")
+  finishedAt  DateTime? @map("finished_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  season      Season    @relation(fields: [seasonId], references: [id])
+
+  @@map("tournament_matches")
+}
