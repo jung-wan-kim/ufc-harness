@@ -39,6 +39,9 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-bold uppercase tracking-wider text-zinc-400 md:flex">
+          <Link href="/rounds" className="hover:text-ufc-gold">
+            라운드
+          </Link>
           <Link href="/leaderboard" className="hover:text-ufc-gold">
             리더보드
           </Link>
