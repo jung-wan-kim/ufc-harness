@@ -1,7 +1,13 @@
-PASS 2026-04-21 01:17:00
-build: PASS (8 routes, middleware 86.7KB)
-typecheck: PASS (6 workspace packages)
-code-quality: PASS
-smoke: /, /leaderboard, /auth/login (200), /submit (307→login), Edge Functions 401/404 as expected
-Codex adversarial review: PASS (round 1→4 convergence, CRITICAL+HIGH=0)
-residual MEDIUM: rate_limit_in_memory + no_regression_tests (acceptable — pre-launch)
+PASS 2026-04-21 qa-cycle round 2
+build: PASS (8 routes)
+typecheck: PASS (6 packages)
+code-quality: PASS (0 hardcoded, 0 as any, 0 console.log, 0 localStorage)
+AUTH: 6/6 automated PASS (remainder requires live GitHub OAuth session)
+EDGE_FUNC: 5/9 automated PASS (ed-003,005,006,007,008 require dispatched submission with real GHA callback)
+DB_RLS: 8/8 PASS (all policies + trigger + cron verified via SQL)
+SEC: 10/12 PASS (rate-limit + cache-control + provider_token + next-allowlist + CSRF all green)
+LB: 3/6 automated PASS (empty state + season + sort — CRUD 관련 3개는 데이터 필요)
+NAV: 1/4 automated PASS (404 — 나머지 브라우저 클릭 테스트 필요)
+LAUNCH_ESSENTIALS: 7/7 PASS (favicon + apple-icon + OG + twitter + manifest + robots + sitemap 전부 200 + 메타 주입 확인)
+Codex adversarial: PASS (round 1→4 convergence, CRITICAL+HIGH=0)
+Skipped: 39 TC (브라우저 인터랙션 요구 — 수동 GitHub OAuth 세션 필요 + GitHub App 생성 사용자 1회 작업 전)

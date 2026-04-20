@@ -1,8 +1,8 @@
 {
   "project": "ufc-harness",
-  "round": 4,
+  "round": 5,
   "verdict": "PASS",
-  "date": "2026-04-21",
+  "date": "2026-04-21 (qa-cycle round 2)",
   "browser_test": {
     "executed": true,
     "tool": "curl + codex",
@@ -12,11 +12,17 @@
   },
   "checks": {
     "build": "PASS",
-    "typecheck": "PASS",
-    "code_quality": "PASS",
-    "smoke": "PASS",
-    "edge_functions": "PASS",
-    "codex_adversarial": "PASS (round 1→4 convergence)"
+    "typecheck": "PASS (6 packages)",
+    "code_quality": "PASS (0 hardcoded keys, 0 as any, 0 console.log, 0 localStorage)",
+    "AUTH_TCs": "6 PASS (001,002,005,009,011 + error reason)",
+    "EDGE_FUNC_TCs": "5 PASS (dispatch-001/002, upload-004, judge-009, user-action auth)",
+    "DB_RLS_TCs": "8 PASS (harnesses INSERT/UPDATE/DELETE with_check, elo trigger, private.secrets locked, cron registered)",
+    "SEC_TCs": "10 PASS (CSRF-001/002, next-allowlist-008, argv-010, hardcoded-011, localStorage-012, rate-limit-003, cache-control-006, provider_token-005)",
+    "LB_TCs": "3 PASS (empty state, season, lookup)",
+    "NAV_TCs": "1 PASS (404)",
+    "LAUNCH_ESSENTIALS": "7/7 PASS (icon, apple-icon, opengraph-image, twitter-image, manifest, robots, sitemap)",
+    "OG_META": "PASS (twitter:card/creator/description/image 전체 주입 + og:title/description/image/url/locale 전체 주입)",
+    "codex_adversarial": "PASS (round 1→4 convergence, CRITICAL+HIGH=0)"
   },
   "covered": {
     "buttons": [
@@ -107,5 +113,11 @@
     "rate_limit_in_memory (acceptable — defense in depth; Upstash Redis for v2)",
     "no_regression_tests (acceptable — pre-launch; to add in QA Phase 6)"
   ],
-  "coverage_rationale": "Pre-launch platform, zero users. Evidence: (1) build+typecheck PASS across 6 packages; (2) Codex adversarial review round 1→4 converging to CRITICAL+HIGH=0; (3) live smoke test all routes + Edge Functions; (4) RLS policies verified via pg_policy; (5) dispatch-challenge + judge-submission E2E verified on live Supabase. Per-button interaction tests deferred to Phase 6 when users exist."
+  "coverage_rationale": "Pre-launch platform, zero users. Evidence: (1) build+typecheck PASS across 6 packages; (2) Codex adversarial review round 1→4 converging to CRITICAL+HIGH=0; (3) live smoke test all routes + Edge Functions; (4) RLS policies verified via pg_policy; (5) dispatch-challenge + judge-submission E2E verified on live Supabase. Per-button interaction tests deferred to Phase 6 when users exist.",
+  "tc_execution": {
+    "total_planned": 79,
+    "executed_automated": 40,
+    "skipped": 39,
+    "skip_reason": "HARNESS-CRUD/CLICK, ACCESSIBILITY — require authenticated GitHub OAuth session (manual browser test) + human GitHub App creation"
+  }
 }

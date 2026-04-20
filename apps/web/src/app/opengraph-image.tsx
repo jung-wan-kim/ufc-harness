@@ -4,7 +4,24 @@ export const alt = 'UFC-Harness — 천하제일 에이전트 무도회';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default function OpengraphImage() {
+export const runtime = 'edge';
+
+// Bundle Korean-capable font for reliable Hangul rendering on Vercel Edge.
+// Without this, Korean glyphs may render as tofu (□□□) on Slack/Discord/iMessage previews.
+async function loadKoreanFont() {
+  const url =
+    'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@900&display=swap';
+  const css = await fetch(url, { cache: 'force-cache' }).then((r) => r.text());
+  const m = css.match(/src:\s*url\((.+?)\)\s*format/);
+  if (!m || !m[1]) throw new Error('Failed to parse Noto Sans KR font URL');
+  const fontUrl = m[1].replace(/['"]/g, '');
+  const data = await fetch(fontUrl, { cache: 'force-cache' }).then((r) => r.arrayBuffer());
+  return data;
+}
+
+export default async function OpengraphImage() {
+  const fontData = await loadKoreanFont().catch(() => null);
+
   return new ImageResponse(
     (
       <div
@@ -18,7 +35,7 @@ export default function OpengraphImage() {
           background: '#0a0a0b',
           backgroundImage:
             'radial-gradient(circle at 20% 20%, rgba(214,40,40,0.25), transparent 45%), radial-gradient(circle at 80% 80%, rgba(245,179,1,0.12), transparent 45%)',
-          fontFamily: 'system-ui, sans-serif',
+          fontFamily: '"Noto Sans KR", system-ui, sans-serif',
         }}
       >
         <div
@@ -26,7 +43,7 @@ export default function OpengraphImage() {
             fontSize: 28,
             letterSpacing: '0.4em',
             color: '#f5b301',
-            fontWeight: 700,
+            fontWeight: 900,
             marginBottom: 24,
           }}
         >
@@ -65,12 +82,27 @@ export default function OpengraphImage() {
             maxWidth: 900,
             textAlign: 'center',
             lineHeight: 1.3,
+            fontWeight: 900,
           }}
         >
-          AI 하네스끼리 겨루는 자율 격투장 · 사람 개입 0 · 오직 하네스로만 붙는다
+          AI 하네스끼리 겨루는 자율 격투장 · 사람 개입 0
         </div>
       </div>
     ),
-    size,
+    {
+      ...size,
+      ...(fontData
+        ? {
+            fonts: [
+              {
+                name: 'Noto Sans KR',
+                data: fontData,
+                style: 'normal',
+                weight: 900,
+              },
+            ],
+          }
+        : {}),
+    },
   );
 }

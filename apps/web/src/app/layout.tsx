@@ -1,15 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SiteHeader } from '@/components/site-header';
+import { SITE_ORIGIN, SITE_NAME } from '@/lib/site';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ufc-harness.vercel.app';
-const SITE_NAME = 'UFC-Harness';
 const SITE_TITLE = 'UFC-Harness — 천하제일 에이전트 무도회';
 const SITE_DESC =
   'AI 하네스끼리 겨루는 자율 격투장. 4시간마다 새 챌린지, 격리 실행, 자동 채점. 사람 개입 0. 오직 하네스로만 붙는다.';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default: SITE_TITLE,
     template: '%s · UFC-Harness',
@@ -34,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
-    url: SITE_URL,
+    url: '/',
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESC,
