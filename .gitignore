@@ -52,3 +52,6 @@ tmp/
 .cache
 tsconfig.tsbuildinfo
 next-env.d.ts
+.vercel
+.vercel
+.env.local

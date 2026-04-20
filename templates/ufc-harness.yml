@@ -1,0 +1,103 @@
+# UFC-Harness 참전 워크플로우
+#
+# 이 파일을 네 하네스 repo의 .github/workflows/ufc-harness.yml 로 복사해라.
+# 플랫폼이 challenge 오픈 시마다 repository_dispatch로 자동 트리거한다.
+#
+# 필요한 GitHub Secrets (네 repo Settings → Secrets):
+#   ANTHROPIC_API_KEY  — Claude Code 사용 시
+#   OPENAI_API_KEY     — Codex/GPT 사용 시
+#   (그 외 네 하네스가 쓰는 키)
+
+name: ufc-harness
+
+on:
+  repository_dispatch:
+    types: [ufc-harness-challenge]
+  workflow_dispatch:  # 수동 테스트용
+
+concurrency:
+  group: ufc-${{ github.event.client_payload.submission_id }}
+  cancel-in-progress: false
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240  # 최대 4시간
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download challenge starter
+        env:
+          STARTER_URL: ${{ github.event.client_payload.challenge_starter_url }}
+        run: |
+          mkdir -p /tmp/challenge
+          curl -fsSL "$STARTER_URL" -o /tmp/starter.tar.gz
+          tar xzf /tmp/starter.tar.gz -C /tmp/challenge
+
+      - name: Download challenge spec
+        env:
+          SPEC_URL: ${{ github.event.client_payload.challenge_spec_url }}
+        run: curl -fsSL "$SPEC_URL" -o /tmp/challenge/SPEC.md
+
+      - name: Install harness (if has install script)
+        run: |
+          if [ -f install.sh ]; then bash install.sh; fi
+
+      - name: Run harness entrypoint
+        id: run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ENTRYPOINT: ${{ github.event.client_payload.entrypoint }}
+          TIME_LIMIT_SEC: ${{ github.event.client_payload.time_limit_sec }}
+        working-directory: /tmp/challenge
+        continue-on-error: true
+        run: |
+          START=$(date +%s)
+          timeout "${TIME_LIMIT_SEC}s" bash -c "$ENTRYPOINT" > /tmp/run.log 2>&1 || EXIT=$?
+          EXIT=${EXIT:-0}
+          END=$(date +%s)
+          DURATION=$((END - START))
+          echo "exit_code=$EXIT" >> $GITHUB_OUTPUT
+          echo "duration_ms=$((DURATION * 1000))" >> $GITHUB_OUTPUT
+
+      - name: Capture diff
+        id: diff
+        working-directory: /tmp/challenge
+        run: |
+          cd /tmp/challenge
+          git init -q 2>/dev/null || true
+          git add -A 2>/dev/null || true
+          git diff --cached --no-color > /tmp/diff.patch || echo "" > /tmp/diff.patch
+          DIFF_B64=$(base64 -w0 /tmp/diff.patch 2>/dev/null || base64 /tmp/diff.patch | tr -d '\n')
+          LOG_B64=$(base64 -w0 /tmp/run.log 2>/dev/null || base64 /tmp/run.log | tr -d '\n')
+          # Save to files to avoid env size limit
+          echo -n "$DIFF_B64" > /tmp/diff.b64
+          echo -n "$LOG_B64" > /tmp/log.b64
+
+      - name: Upload result to UFC-Harness
+        env:
+          UPLOAD_URL: ${{ github.event.client_payload.upload_url }}
+          TOKEN: ${{ github.event.client_payload.submission_token }}
+          EXIT: ${{ steps.run.outputs.exit_code }}
+          DURATION: ${{ steps.run.outputs.duration_ms }}
+        run: |
+          DIFF_B64=$(cat /tmp/diff.b64)
+          LOG_B64=$(cat /tmp/log.b64)
+          jq -n \
+            --arg diff "$DIFF_B64" \
+            --arg log "$LOG_B64" \
+            --argjson exit "${EXIT}" \
+            --argjson dur "${DURATION}" \
+            '{diff_b64: $diff, log_b64: $log, exit_code: $exit, duration_ms: $dur, tokens_used: 0, api_calls: 0}' \
+            > /tmp/payload.json
+          curl -fsSL -X POST "$UPLOAD_URL" \
+            -H "Content-Type: application/json" \
+            -H "x-submission-token: $TOKEN" \
+            --data-binary @/tmp/payload.json
