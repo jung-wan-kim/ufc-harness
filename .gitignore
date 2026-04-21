@@ -56,3 +56,6 @@ next-env.d.ts
 .vercel
 .env.local
 .omx/
+.secrets/
+.supabase/
+supabase/.temp/

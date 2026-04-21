@@ -27,7 +27,7 @@
 ## 공통 전제 조건
 
 - Vercel prod: `https://ufc-harness.vercel.app`
-- Supabase: `https://hihafrpktdotahsbcqfa.supabase.co`
+- Supabase: `https://bypbtvpqjzqescijdqrb.supabase.co`
 - 테스트 계정: GitHub 계정 (실제 OAuth 필요)
 - 로컬: `pnpm dev` 시 `portless`로 래핑
 - agent-browser / curl 준비

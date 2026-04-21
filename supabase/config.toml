@@ -1,4 +1,4 @@
-project_id = "ufc-harness"
+project_id = "bypbtvpqjzqescijdqrb"
 
 [api]
 enabled = true
@@ -27,7 +27,7 @@ enable_signup = true
 enabled = true
 client_id = "env(SUPABASE_AUTH_GITHUB_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_GITHUB_CLIENT_SECRET)"
-redirect_uri = "https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback"
+redirect_uri = "https://bypbtvpqjzqescijdqrb.supabase.co/auth/v1/callback"
 
 [functions.dispatch-challenge]
 verify_jwt = false  # pg_cron에서 호출 (내부 토큰으로 검증)

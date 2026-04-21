@@ -8,7 +8,7 @@
 # Setup steps to get values:
 #   1. https://github.com/settings/applications/new
 #        Homepage:  https://ufc-harness.vercel.app
-#        Callback:  https://hihafrpktdotahsbcqfa.supabase.co/auth/v1/callback
+#        Callback:  https://bypbtvpqjzqescijdqrb.supabase.co/auth/v1/callback
 #   2. https://supabase.com/dashboard/account/tokens
 #
 # Run:
@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-PROJECT_REF="hihafrpktdotahsbcqfa"
+PROJECT_REF="bypbtvpqjzqescijdqrb"
 
 read_secret() {
   local prompt="$1" var
